@@ -117,13 +117,39 @@ func unserializeValue(data []byte, v reflect.Value) (bool, int) {
 		}
 		sums := int(binary.BigEndian.Uint32(data))
 		processByte := 4
-		v.SetLen(sums)
+		v.Set(reflect.MakeSlice(v.Type(), sums, sums))
 		for i := 0; i < sums; i++ {
 			b, l := unserializeValue(data[processByte:], v.Index(i))
 			if !b {
 				return false, 0
 			}
 			processByte += l
+		}
+		return true, processByte
+	case reflect.Map:
+		if len(data) < 4 {
+			return false, 0
+		}
+		sums := int(binary.BigEndian.Uint32(data))
+		processByte := 4
+		mapType := v.Type()
+		keyType := mapType.Key()
+		valueType := mapType.Elem()
+		v.Set(reflect.MakeMapWithSize(mapType, sums))
+		for i := 0; i < sums; i++ {
+			newK := reflect.New(keyType)
+			b, l := unserializeValue(data[processByte:], newK.Elem())
+			if !b {
+				return false, 0
+			}
+			processByte += l
+			newV := reflect.New(valueType)
+			b, l = unserializeValue(data[processByte:], newV.Elem())
+			if !b {
+				return false, 0
+			}
+			processByte += l
+			v.SetMapIndex(newK.Elem(), newV.Elem())
 		}
 		return true, processByte
 	case reflect.String:
@@ -189,6 +215,14 @@ func serializeValue(pbuffer *mybuffer.MyBuffer, v reflect.Value) {
 		for i := 0; i < l; i++ {
 			serializeValue(pbuffer, v.Index(i))
 		}
+	case reflect.Map:
+		keys := v.MapKeys()
+		l := len(keys)
+		pbuffer.AppendUint32(uint32(l))
+		for i := 0; i < l; i++ {
+			serializeValue(pbuffer, keys[i])
+			serializeValue(pbuffer, v.MapIndex(keys[i]))
+		}
 	case reflect.String:
 		pbuffer.AppendString(v.String())
 	case reflect.Struct:
@@ -235,6 +269,31 @@ func (pmsg *TryPlay) Serialize(pbuffer *mybuffer.MyBuffer) {
 
 //UnSerialize 反系列化
 func (pmsg *TryPlay) UnSerialize(data []byte) bool {
+	b, _ := myunserialize(data, pmsg)
+	return b
+}
+
+//Point 点
+type Point struct {
+	X uint32
+	Y uint32
+}
+
+//TestMsg 测试用的消息
+type TestMsg struct {
+	Name  string
+	Age   uint16
+	Score float64
+	Pts   map[string]Point
+}
+
+//Serialize 系列化
+func (pmsg *TestMsg) Serialize(pbuffer *mybuffer.MyBuffer) {
+	myserialize(cmdTryPlay, pbuffer, pmsg)
+}
+
+//UnSerialize 反系列化
+func (pmsg *TestMsg) UnSerialize(data []byte) bool {
 	b, _ := myunserialize(data, pmsg)
 	return b
 }

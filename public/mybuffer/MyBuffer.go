@@ -42,7 +42,7 @@ func (pbuffer *MyBuffer) AppendInt8(data int8) {
 //AppendUint16 添加数据
 func (pbuffer *MyBuffer) AppendUint16(data uint16) {
 	var arr [2]byte
-	binary.LittleEndian.PutUint16(arr[:], data)
+	binary.BigEndian.PutUint16(arr[:], data)
 	pbuffer.splice = append(pbuffer.splice, arr[:]...)
 }
 
@@ -54,7 +54,7 @@ func (pbuffer *MyBuffer) AppendInt16(data int16) {
 //AppendUint32 添加数据
 func (pbuffer *MyBuffer) AppendUint32(data uint32) {
 	var arr [4]byte
-	binary.LittleEndian.PutUint32(arr[:], data)
+	binary.BigEndian.PutUint32(arr[:], data)
 	pbuffer.splice = append(pbuffer.splice, arr[:]...)
 }
 
@@ -66,7 +66,7 @@ func (pbuffer *MyBuffer) AppendInt32(data int32) {
 //AppendUint64 添加数据
 func (pbuffer *MyBuffer) AppendUint64(data uint64) {
 	var arr [8]byte
-	binary.LittleEndian.PutUint64(arr[:], data)
+	binary.BigEndian.PutUint64(arr[:], data)
 	pbuffer.splice = append(pbuffer.splice, arr[:]...)
 }
 

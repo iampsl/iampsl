@@ -3,19 +3,32 @@
 package main
 
 import (
-	"iampsl/test/connect"
+	"fmt"
+	"iampsl/public/mybuffer"
+	"iampsl/test/msg"
+	"strconv"
+	"time"
 )
 
-const totalNums = 1
-
-var gchan = make(chan int, totalNums)
-
 func main() {
-	for i := 0; i < totalNums; i++ {
-		gchan <- 0
+	pbuffer := new(mybuffer.MyBuffer)
+	var test msg.TestMsg
+	test.Age = 20
+	test.Name = "iampsl"
+	test.Score = 100
+	test.Pts = make(map[string]msg.Point, 10)
+	for i := 0; i < 10; i++ {
+		test.Pts[strconv.Itoa(i)] = msg.Point{X: uint32(i), Y: uint32(i)}
 	}
-	for i := range gchan {
-		i++
-		go connect.Test(gchan)
+	begTime := time.Now()
+	for i := 0; i < 1000000; i++ {
+		test.Serialize(pbuffer)
+		inbuffer := pbuffer.Data()
+		var h msg.Head
+		_, l := msg.UnSerializeHead(&h, inbuffer)
+		var newtest msg.TestMsg
+		newtest.UnSerialize(inbuffer[l:])
+		pbuffer.Clear()
 	}
+	fmt.Println(time.Since(begTime).Seconds())
 }
