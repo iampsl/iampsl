@@ -82,9 +82,3 @@ func (pbuffer *MyBuffer) AppendString(data string) {
 	}
 	pbuffer.AppendUint8(0)
 }
-
-//Resize 调整尺寸
-func (pbuffer *MyBuffer) Resize(dataSize int) {
-
-	pbuffer.splice = pbuffer.splice[:dataSize]
-}

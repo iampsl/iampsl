@@ -1,4 +1,3 @@
-// connect_svr 视讯接入服务器
 // 作者：潘胜良
 
 package main
@@ -7,7 +6,7 @@ import (
 	"iampsl/test/connect"
 )
 
-const totalNums = 10000
+const totalNums = 1
 
 var gchan = make(chan int, totalNums)
 

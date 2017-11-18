@@ -82,7 +82,7 @@ func (my *MySocket) WriteBytes(b []byte) {
 
 //Serializer 系列化接口
 type Serializer interface {
-	Serialize(pbuffer *mybuffer.MyBuffer) bool
+	Serialize(pbuffer *mybuffer.MyBuffer)
 }
 
 //Write 写数据
@@ -96,13 +96,8 @@ func (my *MySocket) Write(s Serializer) {
 		return
 	}
 	var dataLen = my.buffers[my.writeIndex].Len()
-	bser := s.Serialize(my.buffers[my.writeIndex])
-	if !bser {
-		my.buffers[my.writeIndex].Resize(dataLen)
-		my.m.Unlock()
-		return
-	}
-	if dataLen == 0 && my.buffers[my.writeIndex].Len() != 0 {
+	s.Serialize(my.buffers[my.writeIndex])
+	if dataLen == 0 {
 		my.notify <- 0
 	}
 	my.m.Unlock()
