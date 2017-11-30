@@ -16,7 +16,7 @@ func myserialize(cmdid uint16, pbuffer *mybuffer.MyBuffer, pmsg interface{}) {
 	serializeValue(pbuffer, reflect.ValueOf(pmsg).Elem())
 	endLen := pbuffer.Len()
 	splice := pbuffer.Data()
-	binary.BigEndian.PutUint16(splice[begLen:begLen+2], uint16(endLen-begLen))
+	binary.LittleEndian.PutUint16(splice[begLen:begLen+2], uint16(endLen-begLen))
 }
 
 func myunserialize(data []byte, pmsg interface{}) (bool, int) {
@@ -50,21 +50,21 @@ func unserializeValue(data []byte, v reflect.Value) (bool, int) {
 		if len(data) < 2 {
 			return false, 0
 		}
-		b16 := binary.BigEndian.Uint16(data)
+		b16 := binary.LittleEndian.Uint16(data)
 		v.SetInt(int64(b16))
 		return true, 2
 	case reflect.Int32:
 		if len(data) < 4 {
 			return false, 0
 		}
-		b32 := binary.BigEndian.Uint32(data)
+		b32 := binary.LittleEndian.Uint32(data)
 		v.SetInt(int64(b32))
 		return true, 4
 	case reflect.Int64:
 		if len(data) < 8 {
 			return false, 0
 		}
-		b64 := binary.BigEndian.Uint64(data)
+		b64 := binary.LittleEndian.Uint64(data)
 		v.SetInt(int64(b64))
 		return true, 8
 	case reflect.Uint8:
@@ -78,28 +78,28 @@ func unserializeValue(data []byte, v reflect.Value) (bool, int) {
 		if len(data) < 2 {
 			return false, 0
 		}
-		b16 := binary.BigEndian.Uint16(data)
+		b16 := binary.LittleEndian.Uint16(data)
 		v.SetUint(uint64(b16))
 		return true, 2
 	case reflect.Uint32:
 		if len(data) < 4 {
 			return false, 0
 		}
-		b32 := binary.BigEndian.Uint32(data)
+		b32 := binary.LittleEndian.Uint32(data)
 		v.SetUint(uint64(b32))
 		return true, 4
 	case reflect.Uint64:
 		if len(data) < 8 {
 			return false, 0
 		}
-		b64 := binary.BigEndian.Uint64(data)
+		b64 := binary.LittleEndian.Uint64(data)
 		v.SetUint(b64)
 		return true, 8
 	case reflect.Float32:
 		if len(data) < 4 {
 			return false, 0
 		}
-		b32 := binary.BigEndian.Uint32(data)
+		b32 := binary.LittleEndian.Uint32(data)
 		f := math.Float32frombits(b32)
 		v.SetFloat(float64(f))
 		return true, 4
@@ -107,7 +107,7 @@ func unserializeValue(data []byte, v reflect.Value) (bool, int) {
 		if len(data) < 8 {
 			return false, 0
 		}
-		b64 := binary.BigEndian.Uint64(data)
+		b64 := binary.LittleEndian.Uint64(data)
 		f := math.Float64frombits(b64)
 		v.SetFloat(f)
 		return true, 8
@@ -115,7 +115,7 @@ func unserializeValue(data []byte, v reflect.Value) (bool, int) {
 		if len(data) < 4 {
 			return false, 0
 		}
-		sums := int(binary.BigEndian.Uint32(data))
+		sums := int(binary.LittleEndian.Uint32(data))
 		processByte := 4
 		v.Set(reflect.MakeSlice(v.Type(), sums, sums))
 		for i := 0; i < sums; i++ {
@@ -130,7 +130,7 @@ func unserializeValue(data []byte, v reflect.Value) (bool, int) {
 		if len(data) < 4 {
 			return false, 0
 		}
-		sums := int(binary.BigEndian.Uint32(data))
+		sums := int(binary.LittleEndian.Uint32(data))
 		processByte := 4
 		mapType := v.Type()
 		keyType := mapType.Key()
@@ -239,16 +239,29 @@ func UnSerializeHead(phead *Head, data []byte) (bool, int) {
 	if len(data) < 2 {
 		return false, 0
 	}
-	phead.Size = binary.BigEndian.Uint16(data)
+	phead.Size = binary.LittleEndian.Uint16(data)
 	if len(data[2:]) < 2 {
 		return false, 0
 	}
-	phead.Cmdid = binary.BigEndian.Uint16(data[2:])
+	phead.Cmdid = binary.LittleEndian.Uint16(data[2:])
 	return true, 4
 }
 
 const (
-	cmdTryPlay uint16 = 10
+	//心跳
+	CmdKeepLive uint16 = 11
+	//CmdTryPlay 试玩请求
+	CmdTryPlay uint16 = 68
+	//CmdTryPlayRes 试玩响应
+	CmdTryPlayRes uint16 = 69
+	//CmdClickRedPacket 点击红包发送的命令
+	CmdClickRedPacket uint16 = 142
+	//CmdClickRedPacketRes 点击红包响应
+	CmdClickRedPacketRes uint16 = 143
+	//CmdServerRegister 服务器注册命令
+	CmdServerRegister uint16 = 107
+	//CmdServerRegisterRes 服务器注册命令响应
+	CmdServerRegisterRes uint16 = 108
 )
 
 //Head 消息头
@@ -264,7 +277,7 @@ type TryPlay struct {
 
 //Serialize 系列化
 func (pmsg *TryPlay) Serialize(pbuffer *mybuffer.MyBuffer) {
-	myserialize(cmdTryPlay, pbuffer, pmsg)
+	myserialize(CmdTryPlay, pbuffer, pmsg)
 }
 
 //UnSerialize 反系列化
@@ -273,27 +286,65 @@ func (pmsg *TryPlay) UnSerialize(data []byte) bool {
 	return b
 }
 
-//Point 点
-type Point struct {
-	X uint32
-	Y uint32
-}
-
-//TestMsg 测试用的消息
-type TestMsg struct {
-	Name  string
-	Age   uint16
-	Score float64
-	Pts   map[string]Point
+//TryPlayRes 试玩响应包
+type TryPlayRes struct {
+	Result uint8
+	Name   string
+	Passwd string
 }
 
 //Serialize 系列化
-func (pmsg *TestMsg) Serialize(pbuffer *mybuffer.MyBuffer) {
-	myserialize(cmdTryPlay, pbuffer, pmsg)
+func (pmsg *TryPlayRes) Serialize(pbuffer *mybuffer.MyBuffer) {
+	myserialize(CmdTryPlayRes, pbuffer, pmsg)
 }
 
 //UnSerialize 反系列化
-func (pmsg *TestMsg) UnSerialize(data []byte) bool {
+func (pmsg *TryPlayRes) UnSerialize(data []byte) bool {
+	b, _ := myunserialize(data, pmsg)
+	return b
+}
+
+//ClickRedPacket 点击红包命令
+type ClickRedPacket struct {
+	//RedID 红包id
+	RedID uint32
+	//UID 用户id
+	UID uint32
+	//MoudleID 服务节点id
+	MoudleID uint32
+	//TotalBet 今天或者历史总的投注额
+	TotalBet float64
+}
+
+//Serialize 系列化
+func (pmsg *ClickRedPacket) Serialize(pbuffer *mybuffer.MyBuffer) {
+	myserialize(CmdClickRedPacket, pbuffer, pmsg)
+}
+
+// ServerRegister 服务器之间注册
+type ServerRegister struct {
+	//MoudleID 服务节点id
+	MoudleID uint16
+	//MoudleType 服务节点类型
+	MoudleType uint16
+	//MoudlePort 服务节点端口
+	MoudlePort uint16
+}
+
+//Serialize 系列化
+func (pmsg *ServerRegister) Serialize(pbuffer *mybuffer.MyBuffer) {
+	myserialize(CmdServerRegister, pbuffer, pmsg)
+}
+
+//ClickRedPacketRes 点击红包响应
+type ClickRedPacketRes struct {
+	RedID  uint32
+	Result uint16
+	Money  float64
+}
+
+//UnSerialize 反系列化
+func (pmsg *ClickRedPacketRes) UnSerialize(data []byte) bool {
 	b, _ := myunserialize(data, pmsg)
 	return b
 }

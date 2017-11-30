@@ -1,30 +1,13 @@
 package redpacket
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"iampsl/public/mysocket"
+	"iampsl/test/msg"
 	"net"
+	"os"
 	"time"
 )
-
-type login struct {
-	size uint16
-	cmd  uint16
-	mid  uint16
-	mt   uint16
-	port uint16
-}
-
-type clickRedPacket struct {
-	size     uint16
-	cmd      uint16
-	redid    uint32
-	uid      uint32
-	serverid uint32
-	totalbet float64
-}
 
 var rspNums int
 var begTime time.Time
@@ -32,63 +15,61 @@ var begTime time.Time
 const totalNums = 100000
 
 func process(data []byte, psocket *mysocket.MySocket) int {
-	if len(data) < 4 {
+	var msgHead msg.Head
+	b, headSize := msg.UnSerializeHead(&msgHead, data)
+	if !b {
 		return 0
 	}
-	size := binary.LittleEndian.Uint16(data[:2])
-	if int(size) > len(data) {
+	if int(msgHead.Size) > len(data) {
 		return 0
 	}
-	cmd := binary.LittleEndian.Uint16(data[2:4])
-	switch cmd {
-	case 108:
-		clickMsg := clickRedPacket{
-			size:     24,
-			cmd:      142,
-			redid:    31,
-			uid:      10,
-			serverid: 8000,
-			totalbet: 1000.0,
-		}
-		pbuffer := new(bytes.Buffer)
-		err := binary.Write(pbuffer, binary.LittleEndian, clickMsg)
-		if err != nil {
-			fmt.Println(err)
-		} else {
-			begTime = time.Now()
-			for i := 0; i < totalNums; i++ {
-				psocket.Write(pbuffer.Bytes())
+	switch msgHead.Cmdid {
+	case msg.CmdServerRegisterRes:
+		fmt.Println("服务器登录成功")
+		clickMsg := msg.ClickRedPacket{RedID: 31, UID: 10, MoudleID: 8000, TotalBet: 10000.12}
+		fmt.Printf("向服务器发送%v个抢红包请求\n", totalNums)
+		begTime = time.Now()
+		for i := 0; i < totalNums; i++ {
+			if i%1000 == 0 {
+				fmt.Printf("向服务器发送第%d个红包请求\n", i+1)
 			}
+			psocket.Write(&clickMsg)
 		}
-	case 143:
+		fmt.Println("所有红包请求发送完成，等待红包响应...")
+	case msg.CmdClickRedPacketRes:
+		var clickResMsg msg.ClickRedPacketRes
+		if clickResMsg.UnSerialize(data[headSize:]) {
+			//fmt.Println(clickResMsg)
+		} else {
+			psocket.Close()
+		}
 		rspNums++
 		if rspNums == totalNums {
-			fmt.Println(time.Since(begTime).Seconds())
+			fmt.Printf("%v个红包响应完成,共用时%v秒\n", totalNums, time.Since(begTime).Seconds())
+			os.Exit(0)
 		}
-	case 11:
+	case msg.CmdKeepLive, 172:
 	default:
-		fmt.Printf("unknow cmd:%d\n", cmd)
+		fmt.Printf("unknow cmd:%d\n", msgHead.Cmdid)
 	}
-	return int(size)
+	return int(msgHead.Size)
 }
 
 //Test 测试入口函数
 func Test() {
-	conn, err := net.Dial("tcp", "103.196.124.22:7777")
+	fmt.Println("连接服务器...")
+	conn, err := net.Dial("tcp", "192.168.31.230:7777")
 	if err != nil {
 		fmt.Print(err)
 		return
 	}
+	fmt.Println("服务器连接成功")
 	var readBuffer = make([]byte, 10240)
 	var readedSizes = 0
 	psocket := mysocket.NewMySocket(conn)
-	var lg = login{size: 10, cmd: 107, mid: 8000, mt: 2, port: 1000}
-	var pbuffer = new(bytes.Buffer)
-	err = binary.Write(pbuffer, binary.LittleEndian, lg)
-	if err != nil {
-		fmt.Println(err)
-	}
-	psocket.Write(pbuffer.Bytes())
+	registerMsg := msg.ServerRegister{MoudleID: 8000, MoudleType: 2, MoudlePort: 1000}
+	fmt.Println("登录服务器")
+	psocket.Write(&registerMsg)
 	for {
 		n, err := psocket.Read(readBuffer[readedSizes:])
 		if err != nil {
@@ -111,5 +92,4 @@ func Test() {
 			readedSizes -= procTotal
 		}
 	}
-
 }

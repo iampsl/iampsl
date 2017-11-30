@@ -8,22 +8,40 @@ import (
 )
 
 func process(data []byte, psocket *mysocket.MySocket) int {
-	return len(data)
+	msgHead := msg.Head{}
+	b, headSize := msg.UnSerializeHead(&msgHead, data)
+	if !b {
+		return 0
+	}
+	if int(msgHead.Size) > len(data) {
+		return 0
+	}
+	switch msgHead.Cmdid {
+	case msg.CmdTryPlayRes:
+		tryRes := msg.TryPlayRes{}
+		if tryRes.UnSerialize(data[headSize:]) {
+			fmt.Println(tryRes)
+		} else {
+			psocket.Close()
+		}
+	}
+	return int(msgHead.Size)
 }
 
 //Test 测试入口
-func Test(ch chan int) {
-	conn, err := net.Dial("tcp", "103.196.124.22:8085")
+func Test(ch chan uint8) {
+	conn, err := net.Dial("tcp", "192.168.31.230:8085")
 	if err != nil {
 		fmt.Println(err)
-		ch <- 0
 		return
 	}
 	psocket := mysocket.NewMySocket(conn)
 	defer psocket.Close()
 	var tryMsg msg.TryPlay
 	tryMsg.LoginType = 3
-	psocket.Write(&tryMsg)
+	for i := 0; i < 1000; i++ {
+		psocket.Write(&tryMsg)
+	}
 	var readBuffer = make([]byte, 10240)
 	var readedSizes = 0
 	for {
