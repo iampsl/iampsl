@@ -8,10 +8,11 @@ import (
 
 //MySocket 对net.Conn 的包装
 type MySocket struct {
-	conn       net.Conn
-	buffers    [2]*mybuffer.MyBuffer
-	sendIndex  uint
-	notify     chan int
+	conn      net.Conn
+	buffers   [2]*mybuffer.MyBuffer
+	sendIndex uint
+	notify    chan int
+
 	m          sync.Mutex
 	bclose     bool
 	writeIndex uint
@@ -97,7 +98,8 @@ func (my *MySocket) Write(s Serializer) {
 	}
 	var dataLen = my.buffers[my.writeIndex].Len()
 	s.Serialize(my.buffers[my.writeIndex])
-	if dataLen == 0 {
+	var nowDataLen = my.buffers[my.writeIndex].Len()
+	if dataLen == 0 && nowDataLen != 0 {
 		my.notify <- 0
 	}
 	my.m.Unlock()
