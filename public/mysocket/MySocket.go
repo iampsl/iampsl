@@ -36,6 +36,7 @@ func NewMySocket(c net.Conn) *MySocket {
 }
 
 func doSend(my *MySocket) {
+	writeErr := false
 	for {
 		_, ok := <-my.notify
 		if !ok {
@@ -45,14 +46,16 @@ func doSend(my *MySocket) {
 		my.writeIndex = my.sendIndex
 		my.m.Unlock()
 		my.sendIndex = (my.sendIndex + 1) % 2
-		var sendSplice = my.buffers[my.sendIndex].Data()
-		for len(sendSplice) > 0 {
-			n, err := my.conn.Write(sendSplice)
-			if err != nil {
-				my.conn.Close()
-				return
+		if !writeErr {
+			var sendSplice = my.buffers[my.sendIndex].Data()
+			for len(sendSplice) > 0 {
+				n, err := my.conn.Write(sendSplice)
+				if err != nil {
+					writeErr = true
+					break
+				}
+				sendSplice = sendSplice[n:]
 			}
-			sendSplice = sendSplice[n:]
 		}
 		my.buffers[my.sendIndex].Clear()
 	}
