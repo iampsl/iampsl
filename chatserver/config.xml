@@ -1,5 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <config>
 	<listenIP>0.0.0.0</listenIP>
-	<listenPort>8888</listenPort>
+	<listenPort>6789</listenPort>
+	<httpListenIP>0.0.0.0</httpListenIP>
+	<httpListenPort>8001</httpListenPort>
+	<wsListenIP>0.0.0.0</wsListenIP>
+	<wsListenPort>8088</wsListenPort>
+	<redisServers>
+		<redis>
+			<name>game</name>
+			<ip>192.168.31.230</ip>
+			<port>6379</port>
+			<db>0</db>
+			<maxconnect>100</maxconnect>
+			<passwd>bx123456</passwd>
+		</redis>
+	</redisServers>
+	<mysqlServers>
+		<mysql>
+			<name>master</name>
+			<dsn>root:123456@tcp(192.168.31.231:3306)/lb_livegame?charset=utf8</dsn>
+			<maxconnect>500</maxconnect>
+		</mysql>
+	</mysqlServers>
 </config>

@@ -77,8 +77,6 @@ func (pbuffer *MyBuffer) AppendInt64(data int64) {
 
 //AppendString 添加数据
 func (pbuffer *MyBuffer) AppendString(data string) {
-	for i := 0; i < len(data); i++ {
-		pbuffer.AppendUint8(data[i])
-	}
-	pbuffer.AppendUint8(0)
+	pbuffer.splice = append(pbuffer.splice, data...)
+	pbuffer.splice = append(pbuffer.splice, 0)
 }

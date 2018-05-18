@@ -1,12 +1,13 @@
 package main
 
 import (
-	"chatServer/global"
-	"chatServer/socketmgr"
-	"chatServer/user"
+	"chatserver/chat"
+	"chatserver/global"
 	"log"
 	"os"
 	"path/filepath"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 func init() {
@@ -25,6 +26,6 @@ func main() {
 	if err := global.LoadConfig("config.xml"); err != nil {
 		log.Fatalln(err)
 	}
-	go socketmgr.TimeoutCheck()
-	user.Listen()
+	installSignal()
+	chat.Start()
 }
