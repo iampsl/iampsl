@@ -44,7 +44,7 @@ func getHallTableNames(id uint32) ([]string, error) {
 	return ret, nil
 }
 
-func getUserInfo(account string, agentCode string) (userID uint32, hallID uint32, agentID uint32, hallName string, agentName string, passwd string, state int, rank int, err error) {
+func getUserInfo(account string, agentCode string) (userID uint32, hallID uint32, agentID uint32, userName string, hallName string, agentName string, passwd string, state int, rank int, err error) {
 	hallID, err = getHallIDFromAgentCode(agentCode)
 	if err != nil {
 		return
@@ -60,8 +60,8 @@ func getUserInfo(account string, agentCode string) (userID uint32, hallID uint32
 		return
 	}
 	for _, v := range tables {
-		row := db.QueryRow(fmt.Sprintf("select uid,hall_id,agent_id,hall_name,agent_name,password,account_state,user_rank from %s where user_name = ? limit 1", v), account)
-		err = row.Scan(&userID, &hallID, &agentID, &hallName, &agentName, &passwd, &state, &rank)
+		row := db.QueryRow(fmt.Sprintf("select uid,hall_id,agent_id,username_md,hall_name,agent_name,password,account_state,user_rank from %s where user_name = ? limit 1", v), account)
+		err = row.Scan(&userID, &hallID, &agentID, &userName, &hallName, &agentName, &passwd, &state, &rank)
 		if err != sql.ErrNoRows {
 			return
 		}

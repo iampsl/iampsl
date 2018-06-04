@@ -41,9 +41,10 @@ func (mgr *SocketMgr) RemoveSocket(psocket mysocket.MyWriteCloser) bool {
 func (mgr *SocketMgr) GetTimeoutSockets(d time.Duration, out []mysocket.MyWriteCloser) []mysocket.MyWriteCloser {
 	out = out[0:0]
 	curTime := time.Now().Unix()
+	dseconds := int64(d.Seconds())
 	mgr.mutex.Lock()
 	for k, v := range mgr.sockets {
-		if curTime-v > int64(d) {
+		if curTime-v > dseconds {
 			out = append(out, k)
 		}
 	}

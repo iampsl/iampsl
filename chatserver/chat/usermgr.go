@@ -14,6 +14,7 @@ import (
 type UserInfo struct {
 	s            mysocket.MyWriteCloser
 	lastReadTime int64
+	account      string
 	userName     string
 	userID       uint32
 	hallID       uint32
@@ -24,11 +25,12 @@ type UserInfo struct {
 }
 
 //NewUserInfo 创建
-func NewUserInfo(socket mysocket.MyWriteCloser, account string, uid uint32, hid uint32, agentid uint32, hname string, aname string, r int) *UserInfo {
+func NewUserInfo(socket mysocket.MyWriteCloser, accountName string, uname string, uid uint32, hid uint32, agentid uint32, hname string, aname string, r int) *UserInfo {
 	return &UserInfo{
 		s:            socket,
 		lastReadTime: time.Now().Unix(),
-		userName:     account,
+		account:      accountName,
+		userName:     uname,
 		userID:       uid,
 		hallID:       hid,
 		agentID:      agentid,
@@ -43,7 +45,12 @@ func (u *UserInfo) GetWriteCloser() mysocket.MyWriteCloser {
 	return u.s
 }
 
-//GetUserName 得到userName
+//GetAccount 得到帐号，带前缀
+func (u *UserInfo) GetAccount() string {
+	return u.account
+}
+
+//GetUserName 得到userName,不带前缀
 func (u *UserInfo) GetUserName() string {
 	return u.userName
 }
@@ -143,12 +150,16 @@ func (mgr *UserMgr) RemoveUser(u *UserInfo) bool {
 	return ret
 }
 
-func (mgr *UserMgr) closeTimeoutUser(d time.Duration) {
+func (mgr *UserMgr) heartBeat() {
+	var heartReq mymsg.ChatHeartReq
 	curTime := time.Now().Unix()
 	mgr.usersMutex.Lock()
 	for _, v := range mgr.users {
-		if curTime-v.GetLastReadTime() > int64(d) {
+		sub := curTime - v.GetLastReadTime()
+		if sub >= 1200 {
 			v.GetWriteCloser().Close()
+		} else if sub >= 300 {
+			v.GetWriteCloser().Write(&heartReq)
 		}
 	}
 	mgr.usersMutex.Unlock()
@@ -216,12 +227,12 @@ func initUserMgr() {
 		log.Fatalln(err)
 	}
 	usrmgr.SetLimits(limits)
-	go userMgrTimeoutCheck()
+	go userMgrHeartBeat()
 }
 
-func userMgrTimeoutCheck() {
+func userMgrHeartBeat() {
 	for {
 		time.Sleep(5 * time.Minute)
-		usrmgr.closeTimeoutUser(30 * time.Minute)
+		usrmgr.heartBeat()
 	}
 }

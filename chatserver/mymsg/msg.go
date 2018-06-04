@@ -262,6 +262,10 @@ const (
 	CmdChatMsg uint16 = 6
 	//CmdChatLimit 禁言通知
 	CmdChatLimit uint16 = 7
+	//CmdChatHeartReq 心跳请求
+	CmdChatHeartReq uint16 = 8
+	//CmdChatHeartRsp 心跳响应
+	CmdChatHeartRsp uint16 = 9
 )
 
 //Head 消息头
@@ -352,4 +356,13 @@ type ChatLimit struct {
 //Serialize 系列化
 func (pmsg *ChatLimit) Serialize(pbuffer *mybuffer.MyBuffer) {
 	myserialize(CmdChatLimit, pbuffer, pmsg)
+}
+
+//ChatHeartReq 心跳请求
+type ChatHeartReq struct {
+}
+
+//Serialize 系列化
+func (pmsg *ChatHeartReq) Serialize(pbuffer *mybuffer.MyBuffer) {
+	myserialize(CmdChatHeartReq, pbuffer, pmsg)
 }

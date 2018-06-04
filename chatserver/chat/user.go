@@ -254,6 +254,7 @@ func onMsg(cmdid uint16, msg []byte, psocket mysocket.MyWriteCloser, ucontext *u
 			onSitUp(msg, psocket, ucontext)
 		case mymsg.CmdChatSendMsgReq:
 			onSendMsgReq(msg, psocket, ucontext)
+		case mymsg.CmdChatHeartRsp:
 		default:
 			global.AppLog.PrintlnError(cmdid)
 			psocket.Close()
@@ -267,7 +268,7 @@ func onLogin(msg []byte, psocket mysocket.MyWriteCloser, ucontext *userContext) 
 		psocket.Close()
 		return
 	}
-	userID, hallID, agentID, hallName, agentName, passwd, state, rank, err := getUserInfo(loginMsg.Account, loginMsg.AgentCode)
+	userID, hallID, agentID, userName, hallName, agentName, passwd, state, rank, err := getUserInfo(loginMsg.Account, loginMsg.AgentCode)
 	if err != nil {
 		global.AppLog.PrintlnInfo(err)
 		psocket.Close()
@@ -289,7 +290,7 @@ func onLogin(msg []byte, psocket mysocket.MyWriteCloser, ucontext *userContext) 
 		return
 	}
 	ucontext.status = login
-	ucontext.puser = NewUserInfo(psocket, loginMsg.Account, userID, hallID, agentID, hallName, agentName, rank)
+	ucontext.puser = NewUserInfo(psocket, loginMsg.Account, userName, userID, hallID, agentID, hallName, agentName, rank)
 	old := usrmgr.AddUser(ucontext.puser)
 	if old != nil {
 		old.GetWriteCloser().Close()
