@@ -156,9 +156,9 @@ func (mgr *UserMgr) heartBeat() {
 	mgr.usersMutex.Lock()
 	for _, v := range mgr.users {
 		sub := curTime - v.GetLastReadTime()
-		if sub >= 1200 {
+		if sub >= 60 {
 			v.GetWriteCloser().Close()
-		} else if sub >= 300 {
+		} else if sub >= 5 {
 			v.GetWriteCloser().Write(&heartReq)
 		}
 	}
@@ -232,7 +232,7 @@ func initUserMgr() {
 
 func userMgrHeartBeat() {
 	for {
-		time.Sleep(5 * time.Minute)
+		time.Sleep(5 * time.Second)
 		usrmgr.heartBeat()
 	}
 }

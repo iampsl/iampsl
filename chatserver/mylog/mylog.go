@@ -94,6 +94,14 @@ func (l *Log) PrintfInfo(format string, a ...interface{}) {
 	if val%2 == 0 {
 		return
 	}
+	formatLen := len(format)
+	if formatLen > 0 {
+		if format[formatLen-1] != '\n' {
+			format += "\n"
+		}
+	} else {
+		format = "\n"
+	}
 	text := fmt.Sprintf(format, a...)
 	_, file, line, ok := runtime.Caller(1)
 	if !ok {
@@ -120,6 +128,14 @@ func (l *Log) PrintlnError(a ...interface{}) {
 
 //PrintfError 输出错误
 func (l *Log) PrintfError(format string, a ...interface{}) {
+	formatLen := len(format)
+	if formatLen > 0 {
+		if format[formatLen-1] != '\n' {
+			format += "\n"
+		}
+	} else {
+		format = "\n"
+	}
 	text := fmt.Sprintf(format, a...)
 	_, file, line, ok := runtime.Caller(1)
 	if !ok {

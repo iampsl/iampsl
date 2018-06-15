@@ -135,18 +135,21 @@ func onWebSocket(w http.ResponseWriter, r *http.Request) {
 	for {
 		msgtype, msg, err := psocket.ReadMessage()
 		if err != nil {
+			global.AppLog.PrintlnInfo(err)
 			break
 		}
 		if msgtype != websocket.BinaryMessage {
-			global.AppLog.PrintlnError(msgtype, msg)
+			global.AppLog.PrintlnInfo(msgtype, msg)
 			break
 		}
 		var h mymsg.Head
 		b, s := mymsg.UnSerializeHead(&h, msg)
 		if !b {
+			global.AppLog.PrintfInfo("UnSerializeHead failed\n")
 			break
 		}
 		if int(h.Size) != len(msg) {
+			global.AppLog.PrintfInfo("not equal\n")
 			break
 		}
 		onMsg(h.Cmdid, msg[s:h.Size], psocket, &ucontext)
@@ -174,6 +177,7 @@ func clean(uc *userContext) {
 		socketmgr.RemoveSocket(uc.psocket)
 	} else {
 		usrmgr.RemoveUser(uc.puser)
+		global.AppLog.PrintfInfo("clean %#v\n", uc.puser)
 	}
 	if uc.sitdown {
 		roommgr.GetRoom(uc.roomID).RemoveUser(uc.puser)
@@ -197,6 +201,7 @@ func onSocket(conn net.Conn) {
 		}
 		n, err := psocket.Read(readBuffer[readedSizes:])
 		if err != nil {
+			global.AppLog.PrintlnInfo(err)
 			break
 		}
 		readedSizes += n
@@ -241,6 +246,7 @@ func process(data []byte, psocket *mysocket.MySocket, ucontext *userContext, rea
 func onMsg(cmdid uint16, msg []byte, psocket mysocket.MyWriteCloser, ucontext *userContext) {
 	if ucontext.status == unlogin {
 		if cmdid != mymsg.CmdChatLogin {
+			global.AppLog.PrintlnInfo(cmdid)
 			psocket.Close()
 		} else {
 			onLogin(msg, psocket, ucontext)
@@ -256,7 +262,7 @@ func onMsg(cmdid uint16, msg []byte, psocket mysocket.MyWriteCloser, ucontext *u
 			onSendMsgReq(msg, psocket, ucontext)
 		case mymsg.CmdChatHeartRsp:
 		default:
-			global.AppLog.PrintlnError(cmdid)
+			global.AppLog.PrintlnInfo(cmdid)
 			psocket.Close()
 		}
 	}
@@ -266,8 +272,10 @@ func onLogin(msg []byte, psocket mysocket.MyWriteCloser, ucontext *userContext) 
 	var loginMsg mymsg.ChatLogin
 	if !loginMsg.UnSerialize(msg) {
 		psocket.Close()
+		global.AppLog.PrintfInfo("loginMsg.UnSerialize failed\n")
 		return
 	}
+	global.AppLog.PrintfInfo("%#v\n", &loginMsg)
 	userID, hallID, agentID, userName, hallName, agentName, passwd, state, rank, err := getUserInfo(loginMsg.Account, loginMsg.AgentCode)
 	if err != nil {
 		global.AppLog.PrintlnInfo(err)
@@ -293,6 +301,7 @@ func onLogin(msg []byte, psocket mysocket.MyWriteCloser, ucontext *userContext) 
 	ucontext.puser = NewUserInfo(psocket, loginMsg.Account, userName, userID, hallID, agentID, hallName, agentName, rank)
 	old := usrmgr.AddUser(ucontext.puser)
 	if old != nil {
+		global.AppLog.PrintfInfo("again login\n")
 		old.GetWriteCloser().Close()
 	}
 }
@@ -300,11 +309,14 @@ func onLogin(msg []byte, psocket mysocket.MyWriteCloser, ucontext *userContext) 
 func onSitDown(msg []byte, psocket mysocket.MyWriteCloser, ucontext *userContext) {
 	var sitDownMsg mymsg.ChatSitDown
 	if !sitDownMsg.UnSerialize(msg) {
+		global.AppLog.PrintfInfo("sitDownMsg.UnSerialize failed\n")
 		psocket.Close()
 		return
 	}
+	global.AppLog.PrintfInfo("%#v %#v %#v\n", &sitDownMsg, ucontext, ucontext.puser)
 	room := roommgr.GetRoom(sitDownMsg.ServiceID)
 	if room == nil {
+		global.AppLog.PrintlnInfo(sitDownMsg.ServiceID)
 		return
 	}
 	if ucontext.sitdown {
@@ -323,9 +335,14 @@ func onSitUp(msg []byte, psocket mysocket.MyWriteCloser, ucontext *userContext) 
 	var sitUpMsg mymsg.ChatSitUp
 	if !sitUpMsg.UnSerialize(msg) {
 		psocket.Close()
+		global.AppLog.PrintfInfo("sitUpMsg.UnSerialize failed\n")
 		return
 	}
+	global.AppLog.PrintfInfo("%#v %#v %#v\n", &sitUpMsg, ucontext, ucontext.puser)
 	if !ucontext.sitdown {
+		return
+	}
+	if ucontext.roomID != sitUpMsg.ServiceID {
 		return
 	}
 	roommgr.GetRoom(ucontext.roomID).RemoveUser(ucontext.puser)
@@ -337,8 +354,10 @@ func onSendMsgReq(msg []byte, psocket mysocket.MyWriteCloser, ucontext *userCont
 	var sendMsgReq mymsg.ChatSendMsgReq
 	if !sendMsgReq.UnSerialize(msg) {
 		psocket.Close()
+		global.AppLog.PrintfInfo("sendMsgReq.UnSerialize failed\n")
 		return
 	}
+	global.AppLog.PrintfInfo("%#v %#v %#v\n", &sendMsgReq, ucontext, ucontext.puser)
 	var sendMsgRsp mymsg.ChatSendMsgRsp
 	if !ucontext.sitdown || ucontext.roomID != sendMsgReq.ServiceID {
 		sendMsgRsp.Result = 1
@@ -371,6 +390,9 @@ func onSendMsgReq(msg []byte, psocket mysocket.MyWriteCloser, ucontext *userCont
 		notifyMutex.Unlock()
 		return
 	}
+	sendMsgRsp.Result = 0
+	psocket.Write(&sendMsgRsp)
+
 	var chatMsg mymsg.ChatMsg
 	chatMsg.ServiceID = sendMsgReq.ServiceID
 	chatMsg.Name = ucontext.puser.GetUserName()
@@ -386,13 +408,9 @@ func onSendMsgReq(msg []byte, psocket mysocket.MyWriteCloser, ucontext *userCont
 	}
 	ucontext.userInfoBuffer = roommgr.GetRoom(ucontext.roomID).GetAllUsers(ucontext.userInfoBuffer)
 	for i := range ucontext.userInfoBuffer {
-		if ucontext.userInfoBuffer[i] != ucontext.puser {
-			ucontext.userInfoBuffer[i].GetWriteCloser().Write(&chatMsg)
-		}
+		ucontext.userInfoBuffer[i].GetWriteCloser().Write(&chatMsg)
 		ucontext.userInfoBuffer[i] = nil
 	}
-	sendMsgRsp.Result = 0
-	psocket.Write(&sendMsgRsp)
 }
 
 var urlReg = xurls.Relaxed()
