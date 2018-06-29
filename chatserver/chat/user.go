@@ -231,6 +231,11 @@ func process(data []byte, psocket *mysocket.MySocket, ucontext *userContext, rea
 	if !b {
 		return 0
 	}
+	if int(h.Size) < s {
+		psocket.Close()
+		global.AppLog.PrintfInfo("%#v\n", &h)
+		return 0
+	}
 	if int(h.Size) > readBufferSize {
 		psocket.Close()
 		global.AppLog.PrintfError("cmdid:%d cmdlen:%d buflen:%d\n", h.Cmdid, h.Size, readBufferSize)
@@ -395,7 +400,7 @@ func onSendMsgReq(msg []byte, psocket mysocket.MyWriteCloser, ucontext *userCont
 
 	var chatMsg mymsg.ChatMsg
 	chatMsg.ServiceID = sendMsgReq.ServiceID
-	chatMsg.Name = ucontext.puser.GetUserName()
+	chatMsg.Name = sendMsgReq.Nickname
 	retMsg, b := keysmgr.Replace([]uint8(sendMsgReq.Msg), '*')
 	if b {
 		chatMsg.Msg = string(retMsg)

@@ -318,6 +318,7 @@ func (pmsg *ChatSitUp) UnSerialize(data []byte) bool {
 type ChatSendMsgReq struct {
 	ServiceID uint16
 	Msg       string
+	Nickname  string
 }
 
 //UnSerialize 反系列化
