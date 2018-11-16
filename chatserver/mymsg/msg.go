@@ -116,14 +116,20 @@ func unserializeValue(data []byte, v reflect.Value) (bool, int) {
 			return false, 0
 		}
 		sums := int(binary.LittleEndian.Uint32(data))
+		capsize := sums
+		if capsize > 100 {
+			capsize = 100
+		}
 		processByte := 4
-		v.Set(reflect.MakeSlice(v.Type(), sums, sums))
+		v.Set(reflect.MakeSlice(v.Type(), 0, capsize))
 		for i := 0; i < sums; i++ {
-			b, l := unserializeValue(data[processByte:], v.Index(i))
+			item := reflect.New(v.Type().Elem()).Elem()
+			b, l := unserializeValue(data[processByte:], item)
 			if !b {
 				return false, 0
 			}
 			processByte += l
+			v.Set(reflect.Append(v, item))
 		}
 		return true, processByte
 	case reflect.Map:
@@ -135,7 +141,7 @@ func unserializeValue(data []byte, v reflect.Value) (bool, int) {
 		mapType := v.Type()
 		keyType := mapType.Key()
 		valueType := mapType.Elem()
-		v.Set(reflect.MakeMapWithSize(mapType, sums))
+		v.Set(reflect.MakeMap(mapType))
 		for i := 0; i < sums; i++ {
 			newK := reflect.New(keyType)
 			b, l := unserializeValue(data[processByte:], newK.Elem())
